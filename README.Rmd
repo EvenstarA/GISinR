@@ -10,20 +10,127 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## GIS in R 
-Project for Honour's  GIS in R Module 2025. 
 
-For this project assignment I will be assessing the ecosystem type within which invasive ant species in South Africa are located. 
+In this exercise I will be mapping the current distribution of three species of protea chafer, to determine if their current ranges overlap with endangered ecosystem types (using iNat and SANBI/CapeNature data). I will also determine what those current ecosystem types are, based on data from the City of Cape Town of the extent of current ecosystem types in the CT area. 
+
 
 ```{r cars}
-summary(cars)
+# libraries needed for analyses
+library(sf)
+library(terra)
+library(tidyverse)
+library(rinat)
+library(leaflet)
 ```
 
-## Including Plots
+## Basemaps 
 
-You can also embed plots, for example:
+Current ecosystem/vegetation types sourced from City of Cape Town (CoCT)
+Threatened ecosystem types sourced from SANBI/CapeNature
+Species observation data sourced from iNaturalist
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+Current ecosystems in Cape Town:
+
+```{r}
+veg_types <- st_read("C:/Users/Arwenn Kummer/Documents/GIT/GISinR/indigenous_veg_current_extent/Indigenous_Vegetation_-_Current_Extent.shp")
+
+st_crs(veg_types)
+
+# accessing national vegetation types
+ggplot() +
+  geom_sf(data = veg_types, aes(fill = `NTNL_VGTN_`)) +
+  theme_minimal()
+```
+ 
+Threatened ecosystems in South Africa:
+```{r}
+threat_eco <- st_read("C:/Users/Arwenn Kummer/Documents/GIT/GISinR/WCBSP_Ecosystem_Threat_Status_2016/BSP_Ecosystem_Threat_Status_2016.shp")
+
+st_crs(threat_eco)
+
+# using CNa1_ETS14 gives us the state of the ecosystem under threat
+ggplot() +
+  geom_sf(data = threat_eco, aes(fill = `CNa1_ETS14`)) +
+  theme_minimal()
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Observational Data
+
+Cape Protea Chafer:
+```{r}
+# load observations
+cpc <- get_inat_obs(taxon_name = "Trichostetha capensis",
+                   bounds = c(-35, 17, -30, 25),
+                   maxresults = 400)
+head(cpc)
+# select only research grade and wild observations
+cpc <- cpc %>% filter(positional_accuracy<46 & 
+                      latitude<0 &
+                      !is.na(latitude) &
+                      captive_cultivated == "false" &
+                      quality_grade == "research")
+
+class(cpc)
+# convert the data frame to a spatial object
+cpc_sf <- st_as_sf(cpc, coords = c("longitude", "latitude"), crs = 4326)
+```
+
+Green Protea Chafer:
+```{r}
+# load observations
+gpc <- get_inat_obs(taxon_name = "Trichostetha fascicularis",
+                    bounds = c(-35, 17, -30, 25),
+                    maxresults = 300)
+# select only research grade and wild observations
+gpc <- gpc %>% filter(positional_accuracy<46 & 
+                      latitude<0 &
+                      !is.na(latitude) &
+                      captive_cultivated == "false" &
+                      quality_grade == "research")
+
+head(gpc)
+
+class(gpc)
+# convert the data frame to a spatial object
+gpc_sf <- st_as_sf(gpc, coords = c("longitude", "latitude"), crs = 4326)
+
+```
+
+Signal Protea Chafer:
+```{r}
+# load observations
+spc <- get_inat_obs(taxon_name = "Trichostetha signata",
+                    bounds = c(-35, 17, -30, 25),
+                    maxresults = 120)
+# select only research grade and wild observations
+spc <- spc %>% filter(positional_accuracy<46 & 
+                      latitude<0 &
+                      !is.na(latitude) &
+                      captive_cultivated == "false" &
+                      quality_grade == "research")
+head(spc)
+class(spc)
+
+# convert the data frame to a spatial object
+spc_sf <- st_as_sf(spc, coords = c("longitude", "latitude"), crs = 4326)
+```
+
+## Cropping the map: 
+
+We can overlay the species distributions and the threatened ecosystems as follows:
+```{r}
+ggplot() +
+  geom_sf(data = threat_eco, aes(fill =  `CNa1_ETS14`)) +
+  geom_sf(data = cpc_sf, color = "red", size =0.8) +
+  geom_sf(data = gpc_sf, color = "green", size = 0.8) +
+  geom_sf(data = spc_sf, color = "blue", size = 0.8) +
+  theme_minimal()
+```
+
+
+But we want to focus specifically on the CoCT area in the Western Cape. So, we need to crop the map area.
+
+```{r}
+
+```
+
