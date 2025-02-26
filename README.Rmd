@@ -9,11 +9,10 @@ output: rmarkdown::github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## GIS in R 
+Project for Honour's  GIS in R Module 2025. 
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+For this project assignment I will be assessing the ecosystem type within which invasive ant species in South Africa are located. 
 
 ```{r cars}
 summary(cars)
