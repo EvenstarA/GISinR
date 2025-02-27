@@ -28,8 +28,9 @@ In this exercise I will be mapping the current distribution of three species of 
 This data was sourced from the 2016 Ecosystem Threat Status project conducted by SANBI and CapeNature (<https://bgis.sanbi.org/SpatialDataset/Detail/611>).
 
 ```{r}
-# load the sf library - this allows us to work with shape files.
-library(sf)
+
+library(sf) # load the sf library - this allows us to work with shape files.
+library(tidyverse) # load the tidyverse library - this allows us to use all the tidyverse tools 
 
 # read the shapefile into R
 threat_eco <- st_read("C:/Users/Arwenn Kummer/Documents/GIT/GISinR/WCBSP_Ecosystem_Threat_Status_2016/BSP_Ecosystem_Threat_Status_2016.shp")
@@ -41,9 +42,6 @@ st_crs(threat_eco)
 ```
 
 ```{r}
-# load the tidyverse library - gives us access to numerous functions, including ggplot()
-library(tidyverse)
-
 # plot threat_eco in ggplot() to do a visual check. The `CNa1_ETS14` variable gives us the threat status of each ecosystem
 ggplot() +
   geom_sf(data = threat_eco, aes(fill = `CNa1_ETS14`)) +
@@ -52,7 +50,7 @@ ggplot() +
 
 ## Observational Data from iNaturalist
 
-Three of the most common protea chafers found in the Western Cape and South Africa will be used in this distribution mapping exercise; Cape Protea Chafer (Tricostetha capensis), Green Protea Chafer (T. fascicularis) and Signal Protea Chafer (T. signata). These will be read into R using a function from rinat(): get_inat_obs(). Each species' observations will be stored in a data frame and subsequently converted to a shapefile for mapping.
+Three of the most common protea chafers found in the Western Cape will be used in this distribution mapping exercise; Cape Protea Chafer (*Trichostetha capensis*), Green Protea Chafer (*T. fascicularis*) and Signal Protea Chafer (*T. signata*). These will be read into R using a function from `rinat()`: `get_inat_obs()`. Each species' observations will be stored in a data frame and subsequently converted to a shape-file for mapping.
 
 #### Cape Protea Chafer:
 
@@ -68,20 +66,20 @@ head(cpc)
 ```
 
 ```{r}
-# select only research grade and wild observations
+# filter for only research grade and wild observations
 cpc <- cpc %>% filter(positional_accuracy<46 & 
                       latitude<0 &
                       !is.na(latitude) &
                       captive_cultivated == "false" &
                       quality_grade == "research")
-
-class(cpc)
+# check the class 
+class(cpc) # it's a data frame, and we need a shapefile
 
 # convert the data frame to a spatial object to allow mapping
 cpc_sf <- st_as_sf(cpc, coords = c("longitude", "latitude"), crs = 4326)
 
-# check the coordinate reference system
-st_crs(cpc_sf)
+# check the coordinate reference system and class
+st_crs(cpc_sf) ; class(cpc_sf)
 ```
 
 ```{r}
@@ -100,19 +98,20 @@ head(gpc)
 ```
 
 ```{r}
-# select only research grade and wild observations
+# filter for research grade and wild observations
 gpc <- gpc %>% filter(positional_accuracy<46 & 
                       latitude<0 &
                       !is.na(latitude) &
                       captive_cultivated == "false" &
                       quality_grade == "research")
-class(gpc)
+# check the class
+class(gpc) # it's a data frame. We need a shape file.
 
 # convert the data frame to a spatial object
 gpc_sf <- st_as_sf(gpc, coords = c("longitude", "latitude"), crs = 4326)
 
-# check the coordinate reference system
-st_crs(gpc_sf)
+# check the coordinate reference system and class
+st_crs(gpc_sf) ; class(gpc_sf)
 ```
 
 ```{r}
@@ -137,53 +136,61 @@ spc <- spc %>% filter(positional_accuracy<46 &
                       !is.na(latitude) &
                       captive_cultivated == "false" &
                       quality_grade == "research")
-
-class(spc)
+# check the class
+class(spc) # it's a data frame and we need a shape file
 
 # convert the data frame to a spatial object
 spc_sf <- st_as_sf(spc, coords = c("longitude", "latitude"), crs = 4326)
 
-# check the coordinate reference system
-st_crs(spc_sf)
+# check the coordinate reference system and class
+st_crs(spc_sf) ; class(spc_sf)
 ```
 
 ```{r}
 plot(spc_sf) # plot the shape file to check that everything works and runs
 ```
 
+#### A note on subspecies:
+
+There are multiple subspecies for each of the above species. For simplicity, these subspecies observations have been grouped/included within the mapping of the main species. i.e. there is no differentiation between subspecies of the same species within this mapping exercise.
+
+### Coordinate Reference Systems...
+
 Fortunately, all of the shape file coordinate reference systems are WGS84 - World Geodesic System 1984. This means we don't need to transform any of the layers before we can overlap them. We can also see from generating the above plots, that the data for threatened ecosystems and each of the species seems to plot on coordinate axes. Now we can start layering them and working on an interactive map!
 
 # Mapping
 
-## Beetle distribution and Threatened Ecosystems in the Western Cape
+## Beetle distribution and threatened ecosystems in the Western Cape
 
-First we'll create a static map that shows the ecosystem threat-status, with the beetles distribution shape files overlaid. We'll do this using ggplot() for now.
+First, we'll create a static map that shows the ecosystem threat-status, with the beetles distribution shape files overlaid. We'll do this using `ggplot()` for now...
 
 ```{r}
-# Let's make the map a bit prettier: plotting the ecosystem threat status with a different colour scheme
+# Let's make the map a bit prettier: plotting the ecosystem threat status with a different colour scheme and correcting the legend title.
 ggplot() +
   geom_sf(data = threat_eco, aes(fill = `CNa1_ETS14`)) +
   scale_fill_manual(values = c("#ffac27", "#e7815d", "#ce5693", "#b62bc9", "#9d00ff")) +
-  labs(fill = "Ecosystem threat status")
+  labs(fill = "Ecosystem threat status") +
   theme_minimal()
+
 ```
 
-I scoured Google and Stackexchange trying to find out how to add a legend for the beetles but couldn't find a solution that ran and generated a legend. As such the legend is here in plain text: T. capensis = pink T. fascicularis = light green T. signata = sky blue
+Now, I ***scoured*** Google and Stackexchange trying to find out how to add a legend for the beetles but couldn't find a solution that ran and generated a legend. As such the legend is here in plain text: T. capensis = pink T. fascicularis = green T. signata = turquoise.
 
 ```{r}
 # Overlap the beetles' distributions
+ ggplot() +
   geom_sf(data = threat_eco, aes(fill =  `CNa1_ETS14`)) +
   scale_fill_manual(values = c("#ffac27", "#e7815d", "#ce5693", "#b62bc9", "#9d00ff")) +
-  labs(fill = "Ecosystem threat status")+
+  labs(fill = "Ecosystem threat status") +
   geom_sf(data = cpc_sf, color = "pink", size =0.8) +
-  geom_sf(data = gpc_sf, color = "lightgreen", size = 0.8) +
-  geom_sf(data = spc_sf, color = "skyblue", size = 0.8) +
+  geom_sf(data = gpc_sf, color = "green", size = 0.8) +
+  geom_sf(data = spc_sf, color = "turquoise", size = 0.8) +
   theme_minimal()
 
 
 ```
 
-This is all well and good, and provides us with a broad scale view of the species distributions across the various ecosystems. But we want to be able to look closer and see exactly where these species fall, and in what ecosystem type. To achieve this, we will generate an interactive map.
+This is all well and good, and provides us with a broad scale view of the species distributions across the various ecosystems. But what if we want to be able to look closer and see exactly where these species occur, and in what ecosystem type. To achieve this, we will generate an interactive map.
 
 # Interactive Map!
 
@@ -191,13 +198,15 @@ This is all well and good, and provides us with a broad scale view of the specie
 library(mapview) # allows us to create an interactive map
 library(RColorBrewer) # loads in a palette of colour schemes
 
-mapview(threat_eco, zcol = c("CNa1_ETS14"), col.regions = brewer.pal(5,"RdYlBu"), map.types = "CartoDB.Positron", layer.name = c("Ecosystem Threat Level")) + 
-  mapview(threat_eco, zcol = c("NAME"), layer.name = c("Ecosystem name"), hide = TRUE, legend = FALSE) +
+mapview(threat_eco, zcol = c("CNa1_ETS14"), col.regions = brewer.pal(5,"RdYlBu"), map.types = "CartoDB.Positron", layer.name = c("Ecosystem Threat Status")) + 
+  mapview(threat_eco, zcol = c("NAME"), layer.name = c("Ecosystem name"), hide = TRUE) +
   mapview(cpc_sf, col.regions = "hotpink", layer.name = c("Trichostetha capensis")) + 
   mapview(gpc_sf, col.regions = "green", layer.name = c("Trichostetha fascicularis")) + 
   mapview(spc_sf, col.regions = "turquoise", layer.name = c("Trichostetha signata"))
 ```
 
-Note that the `ecosystem names` layer is hidden when the map generates, but this can be toggled on and off using the layer icon below the zoom buttons in the top left hand corner. Mousing over the map will show the ecosystem names. The legend has been hidden for visibility purposes.
+Note that the `Ecosystem name` layer is hidden when the map generates, but this can be toggled on and off using the layer icon ![](images/clipboard-2564628779.png){width="22" height="22"} in the top left hand corner.
 
-Now we are able to visually assess the current distribution of these species, and which ecosystem types they fall in. Further more, we can see that most fall on the boundary of a threatened ecosystem, or within a threatened ecosystem. This information can be used to inform conservation efforts and to determine which species and subspecies are most at risk from occurring within these threatened ecosystems.
+-   **NOTE:** the `Ecosystem name` legend automatically generates when the map loads, but can be toggled off to increase visibility. Simply open the layer list option and select then deselect the `Ecosystem names` layer from the drop down list.
+
+Now we are able to visually assess the current distribution of the protea chafer species, which ecosystem types they are found in, and the ecosystem's threat status. From this, we can see that most fall on the boundary of an endangered or critically endangered ecosystem, or within a threatened ecosystem. This method of mapping species distributions can be used to inform conservation efforts and determine which species (and subspecies) may be most at risk from habitat loss, due to their ecosystems' threat status.
