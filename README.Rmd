@@ -9,39 +9,42 @@ output: rmarkdown::github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## GIS in R 
+## GIS in R
 
-In this exercise I will be mapping the current distribution of three species of protea chafer, to determine if their current ranges overlap with endangered ecosystem types (using iNat and SANBI/CapeNature data). I will also determine what those current ecosystem types are, based on data from the City of Cape Town of the extent of current ecosystem types in the CT area. 
+In this exercise I will be mapping the current distribution of three species of protea chafer, to determine if their current ranges overlap with endangered ecosystem types (using iNat and SANBI/CapeNature data). I aim to create an interactive map using mapview() that allows viewers to pan, zoom and inspect individual observations, the ecosystem threat status that they occur in, as well as the name of the ecosystem the occur in.
 
+## Basemaps and Data
 
-```{r cars}
-# libraries needed for analyses
-library(sf) # for working with shape files
-library(terra) # for working with raster files
-library(tidyverse) # for mapping and ggplot functions
-library(rinat) # for accessing the iNaturalist observation data
-library(leaflet) # for interactive mapping!
-```
+*Current ecosystem/vegetation types sourced from City of Cape Town (CoCT)*: while working with the data, it became apparent that this data set is redundant, as the relevant information I would have needed from it is already encased within the SANBI/CapeNature data set that I used for the Threatened Ecosystem areas.
 
-## Basemaps 
+*Threatened ecosystem types sourced from SANBI/CapeNature*: <https://bgis.sanbi.org/SpatialDataset/Detail/611>. This data maps the current threat statuses for various ecosystms in the Western Cape.
 
-*Current ecosystem/vegetation types sourced from City of Cape Town (CoCT)*: while working with the data, it became apparent that this data set is redundant, as the relevant information I would have needed from it is already encased within the SANBI/CapeNature data set that I used for the Threatened Ecosystem areas. 
+*Species observation data sourced from iNaturalist*: <https://www.inaturalist.org/observations?place_id=6986&subview=map&taxon_id=423700&verifiable=any&view=species&iconic_taxa=Insecta>. This data includes research grade, wild observations, though some observations occur within Kirstenbosch Botanical Gardens, and thus may be considered 'captive'. Sub-species are included in the broader species classification for ease.
 
-*Threatened ecosystem types sourced from SANBI/CapeNature*:
-*Species observation data sourced from iNaturalist*: This data includes research grade, wild observations, though some observations occur within Kirstenbosch Botanical Gardens, and thus may be considered 'captive'. Sub-species are included in the broader species classification for ease. 
+### Loading Data files into R:
 
-## Loading Data files into R:
- 
 #### Threatened ecosystems in the Western Cape
-This data was sourced from the 2016 Ecosystem Threat Status project conducted by SANBI and CapeNature. 
-```{r}
-threat_eco <- st_read("C:/Users/Arwenn Kummer/Documents/GIT/GISinR/WCBSP_Ecosystem_Threat_Status_2016/BSP_Ecosystem_Threat_Status_2016.shp")
 
+This data was sourced from the 2016 Ecosystem Threat Status project conducted by SANBI and CapeNature (<https://bgis.sanbi.org/SpatialDataset/Detail/611>).
+
+```{r}
+# load the sf library - this allows us to work with shape files.
+library(sf)
+
+# read the shapefile into R
+threat_eco <- st_read("C:/Users/Arwenn Kummer/Documents/GIT/GISinR/WCBSP_Ecosystem_Threat_Status_2016/BSP_Ecosystem_Threat_Status_2016.shp")
+view(threat_eco) # view the data to determine which variables are present and what information is provided. 
+
+# determine the coordinate reference system
 st_crs(threat_eco)
+
 ```
 
 ```{r}
-# plot the data frame in ggplot() to do a visual check. The `CNa1_ETS14` variable gives us the state of the ecosystem under threat
+# load the tidyverse library - gives us access to numerous functions, including ggplot()
+library(tidyverse)
+
+# plot threat_eco in ggplot() to do a visual check. The `CNa1_ETS14` variable gives us the threat status of each ecosystem
 ggplot() +
   geom_sf(data = threat_eco, aes(fill = `CNa1_ETS14`)) +
   theme_minimal()
@@ -49,16 +52,21 @@ ggplot() +
 
 ## Observational Data from iNaturalist
 
-Three of the most common protea chafers will be used in this distribution mapping exercise; Cape Protea Chafer (Tricostetha capensis), Green Protea Chafer (T. fascicularis) and Signal Protea Chafer (T. signata).
+Three of the most common protea chafers found in the Western Cape and South Africa will be used in this distribution mapping exercise; Cape Protea Chafer (Tricostetha capensis), Green Protea Chafer (T. fascicularis) and Signal Protea Chafer (T. signata). These will be read into R using a function from rinat(): get_inat_obs(). Each species' observations will be stored in a data frame and subsequently converted to a shapefile for mapping.
 
 #### Cape Protea Chafer:
+
 ```{r}
+# load the rinat() library - allows us to read data from iNaturalist directly
+library(rinat)
+
 # load observations
 cpc <- get_inat_obs(taxon_name = "Trichostetha capensis",
-                   bounds = c(-35, 17, -30, 25),
+                   bounds = c(-35, 17, -30, 25), # confined searches to the Western Cape region
                    maxresults = 400)
 head(cpc)
 ```
+
 ```{r}
 # select only research grade and wild observations
 cpc <- cpc %>% filter(positional_accuracy<46 & 
@@ -68,25 +76,29 @@ cpc <- cpc %>% filter(positional_accuracy<46 &
                       quality_grade == "research")
 
 class(cpc)
-# convert the data frame to a spatial object
+
+# convert the data frame to a spatial object to allow mapping
 cpc_sf <- st_as_sf(cpc, coords = c("longitude", "latitude"), crs = 4326)
+
 # check the coordinate reference system
 st_crs(cpc_sf)
 ```
 
 ```{r}
-plot(cpc_sf)
+plot(cpc_sf) # plot the shape file to check that everything works and runs
 ```
 
 #### Green Protea Chafer:
+
 ```{r}
 # load observations
 gpc <- get_inat_obs(taxon_name = "Trichostetha fascicularis",
-                    bounds = c(-35, 17, -30, 25),
+                    bounds = c(-35, 17, -30, 25), # confined searches to the Western Cape region
                     maxresults = 300)
 
 head(gpc)
 ```
+
 ```{r}
 # select only research grade and wild observations
 gpc <- gpc %>% filter(positional_accuracy<46 & 
@@ -95,18 +107,21 @@ gpc <- gpc %>% filter(positional_accuracy<46 &
                       captive_cultivated == "false" &
                       quality_grade == "research")
 class(gpc)
+
 # convert the data frame to a spatial object
 gpc_sf <- st_as_sf(gpc, coords = c("longitude", "latitude"), crs = 4326)
+
 # check the coordinate reference system
 st_crs(gpc_sf)
 ```
 
 ```{r}
-plot(gpc_sf)
+plot(gpc_sf) # plot the shape file to check that everything works and runs
 
 ```
 
 #### Signal Protea Chafer:
+
 ```{r}
 # load observations
 spc <- get_inat_obs(taxon_name = "Trichostetha signata",
@@ -114,6 +129,7 @@ spc <- get_inat_obs(taxon_name = "Trichostetha signata",
                     maxresults = 120)
 head(spc)
 ```
+
 ```{r}
 # select only research grade and wild observations
 spc <- spc %>% filter(positional_accuracy<46 & 
@@ -123,35 +139,39 @@ spc <- spc %>% filter(positional_accuracy<46 &
                       quality_grade == "research")
 
 class(spc)
+
 # convert the data frame to a spatial object
 spc_sf <- st_as_sf(spc, coords = c("longitude", "latitude"), crs = 4326)
+
 # check the coordinate reference system
 st_crs(spc_sf)
 ```
 
-
 ```{r}
-plot(spc_sf)
+plot(spc_sf) # plot the shape file to check that everything works and runs
 ```
 
-We can see that the data for threatened ecosystems and each of the species plots correctly.
+We can see that the data for threatened ecosystems and each of the species plots correctly. Now we can start layering them and working on an interactive map
 
+# Mapping
 
-# Beetle distribution within Threatened Ecosystems in the Western Cape:
+## Beetle distribution and Threatened Ecosystems in the Western Cape
 
-First we'll create a static map that shows the ecosystem threat-status, then the beetles distributions overlaid:
+First we'll create a static map that shows the ecosystem threat-status, with the beetles distribution shape files overlaid. We'll do this using ggplot() for now.
+
 ```{r}
-# Let's make the map a bit prettier: plotting the ecosystem threat status 
+# Let's make the map a bit prettier: plotting the ecosystem threat status with a different colour scheme
 ggplot() +
   geom_sf(data = threat_eco, aes(fill = `CNa1_ETS14`)) +
   scale_fill_manual(values = c("#ffac27", "#e7815d", "#ce5693", "#b62bc9", "#9d00ff")) +
   labs(fill = "Ecosystem threat status")
   theme_minimal()
 ```
-  
-```{r}  
+
+I scoured Google and Stackexchange trying to find out how to add a legend for the beetles but couldn't find a solution that ran. As such the legend is here in plain text: T. capensis = pink T. fascicularis = light green T. signata = sky blue
+
+```{r}
 # Overlap the beetles' distributions
-ggplot() +
   geom_sf(data = threat_eco, aes(fill =  `CNa1_ETS14`)) +
   scale_fill_manual(values = c("#ffac27", "#e7815d", "#ce5693", "#b62bc9", "#9d00ff")) +
   labs(fill = "Ecosystem threat status")+
@@ -159,15 +179,17 @@ ggplot() +
   geom_sf(data = gpc_sf, color = "lightgreen", size = 0.8) +
   geom_sf(data = spc_sf, color = "skyblue", size = 0.8) +
   theme_minimal()
+
+
 ```
-This is all well and good, and provides us with a broad scale view of the species distributions across the various ecosystems. But we want to be able to look closer and see exactly where these species fall, and in what ecosystem type. To achieve this, we will generate an interactive map. 
+
+This is all well and good, and provides us with a broad scale view of the species distributions across the various ecosystems. But we want to be able to look closer and see exactly where these species fall, and in what ecosystem type. To achieve this, we will generate an interactive map.
 
 # Interactive Map!
+
 ```{r}
-library(leaflet)
-library(htmltools)
-library(mapview)
-library(RColorBrewer)
+library(mapview) # allows us to create an interactive map
+library(RColorBrewer) # loads in a palette of colour schemes
 
 mapview(threat_eco, zcol = c("CNa1_ETS14"), col.regions = brewer.pal(5,"RdYlBu"), map.types = "CartoDB.Positron", layer.name = c("Ecosystem Threat Level")) + 
   mapview(threat_eco, zcol = c("NAME"), layer.name = c("Ecosystem name"), hide = TRUE, legend = FALSE) +
@@ -176,5 +198,6 @@ mapview(threat_eco, zcol = c("CNa1_ETS14"), col.regions = brewer.pal(5,"RdYlBu")
   mapview(spc_sf, col.regions = "turquoise", layer.name = c("Trichostetha signata"))
 ```
 
-Note that the <\ecosystemnames> layer is hidden when the map generates, but this can be toggled on and off using the layer icon below the zoom buttons in the top left hand corner. Mousing over the map will show the ecosystem names. The legend has been hidden for visibility purposes. 
+Note that the `ecosystem names` layer is hidden when the map generates, but this can be toggled on and off using the layer icon below the zoom buttons in the top left hand corner. Mousing over the map will show the ecosystem names. The legend has been hidden for visibility purposes.
 
+Now we are able to visually assess the current distribution of these species, and which ecosystem types they fall in. Further more, we can see that most fall on the boundary of a threatened ecosystem, or within a threatened ecosystem. This information can be used to inform conservation efforts and to determine which species and subspecies are most at risk from occurring within these threatened ecosystems.
