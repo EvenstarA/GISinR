@@ -151,7 +151,7 @@ st_crs(spc_sf)
 plot(spc_sf) # plot the shape file to check that everything works and runs
 ```
 
-We can see that the data for threatened ecosystems and each of the species plots correctly. Now we can start layering them and working on an interactive map
+Fortunately, all of the shape file coordinate reference systems are WGS84 - World Geodesic System 1984. This means we don't need to transform any of the layers before we can overlap them. We can also see from generating the above plots, that the data for threatened ecosystems and each of the species seems to plot on coordinate axes. Now we can start layering them and working on an interactive map!
 
 # Mapping
 
@@ -168,7 +168,7 @@ ggplot() +
   theme_minimal()
 ```
 
-I scoured Google and Stackexchange trying to find out how to add a legend for the beetles but couldn't find a solution that ran. As such the legend is here in plain text: T. capensis = pink T. fascicularis = light green T. signata = sky blue
+I scoured Google and Stackexchange trying to find out how to add a legend for the beetles but couldn't find a solution that ran and generated a legend. As such the legend is here in plain text: T. capensis = pink T. fascicularis = light green T. signata = sky blue
 
 ```{r}
 # Overlap the beetles' distributions
