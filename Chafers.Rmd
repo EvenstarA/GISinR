@@ -1,5 +1,5 @@
 ---
-title: "README.Rmd"
+title: "Protea Chafers"
 author: "Arwenn Kummer"
 date: "2025-02-24"
 output: html_document
@@ -33,8 +33,7 @@ library(sf) # load the sf library - this allows us to work with shape files.
 library(tidyverse) # load the tidyverse library - this allows us to use all the tidyverse tools 
 
 # read the shapefile into R
-threat_eco <- st_read("C:/Users/Arwenn Kummer/Documents/GIT/GISinR/WCBSP_Ecosystem_Threat_Status_2016/BSP_Ecosystem_Threat_Status_2016.shp")
-view(threat_eco) # view the data to determine which variables are present and what information is provided. 
+threat_eco <- st_read("data/WCBSP_Ecosystem_Threat_Status_2016/BSP_Ecosystem_Threat_Status_2016.shp")
 
 # determine the coordinate reference system
 st_crs(threat_eco)
@@ -46,6 +45,19 @@ st_crs(threat_eco)
 ggplot() +
   geom_sf(data = threat_eco, aes(fill = `CNa1_ETS14`)) +
   theme_minimal()
+```
+
+```{r}
+# check for invalid geometries
+threat_eco_valid <- threat_eco[st_is_valid(threat_eco), ]
+
+# Define the bounding box for the City of Cape Town
+myextent <- st_bbox(c(xmin = 18, ymin = -34.5, xmax = 19, ymax = -33), crs = st_crs(threat_eco))
+
+# Crop the map
+threat_eco_cropped <- st_crop(threat_eco_valid, myextent)
+
+
 ```
 
 ## Observational Data from iNaturalist
@@ -60,7 +72,7 @@ library(rinat)
 
 # load observations
 cpc <- get_inat_obs(taxon_name = "Trichostetha capensis",
-                   bounds = c(-35, 17, -30, 25), # confined searches to the Western Cape region
+                   bounds = c(-34.5, 18, -33, 19), # confined searches to the Western Cape region
                    maxresults = 400)
 head(cpc)
 ```
@@ -83,7 +95,9 @@ st_crs(cpc_sf) ; class(cpc_sf)
 ```
 
 ```{r}
-plot(cpc_sf) # plot the shape file to check that everything works and runs
+ggplot() +
+  geom_sf(data = cpc_sf[1]) +
+  theme(legend.key.width = unit(10.1, "cm"))  # plot the shape file to check that everything works and runs
 ```
 
 #### Green Protea Chafer:
@@ -91,7 +105,7 @@ plot(cpc_sf) # plot the shape file to check that everything works and runs
 ```{r}
 # load observations
 gpc <- get_inat_obs(taxon_name = "Trichostetha fascicularis",
-                    bounds = c(-35, 17, -30, 25), # confined searches to the Western Cape region
+                    bounds = c(-34.5, 18, -33, 19), # confined searches to the Western Cape region
                     maxresults = 300)
 
 head(gpc)
@@ -115,8 +129,10 @@ st_crs(gpc_sf) ; class(gpc_sf)
 ```
 
 ```{r}
-plot(gpc_sf) # plot the shape file to check that everything works and runs
-
+ggplot() +
+  geom_sf(data = gpc_sf[1]) +
+  theme(legend.key.width = unit(10.1, "cm")) # plot the shape file to check that everything works and runs
+ 
 ```
 
 #### Signal Protea Chafer:
@@ -124,7 +140,7 @@ plot(gpc_sf) # plot the shape file to check that everything works and runs
 ```{r}
 # load observations
 spc <- get_inat_obs(taxon_name = "Trichostetha signata",
-                    bounds = c(-35, 17, -30, 25),
+                    bounds = c(-34.5, 18, -33, 19),
                     maxresults = 120)
 head(spc)
 ```
@@ -147,7 +163,9 @@ st_crs(spc_sf) ; class(spc_sf)
 ```
 
 ```{r}
-plot(spc_sf) # plot the shape file to check that everything works and runs
+ggplot() +
+  geom_sf(data = gpc_sf[1]) +
+  theme(legend.key.width = unit(10.1, "cm"))  # plot the shape file to check that everything works and runs
 ```
 
 #### A note on subspecies:
@@ -167,7 +185,7 @@ First, we'll create a static map that shows the ecosystem threat-status, with th
 ```{r}
 # Let's make the map a bit prettier: plotting the ecosystem threat status with a different colour scheme and correcting the legend title.
 ggplot() +
-  geom_sf(data = threat_eco, aes(fill = `CNa1_ETS14`)) +
+  geom_sf(data = threat_eco_cropped, aes(fill = `CNa1_ETS14`)) +
   scale_fill_manual(values = c("#ffac27", "#e7815d", "#ce5693", "#b62bc9", "#9d00ff")) +
   labs(fill = "Ecosystem threat status") +
   theme_minimal()
@@ -179,7 +197,7 @@ Now, I ***scoured*** Google and Stackexchange trying to find out how to add a le
 ```{r}
 # Overlap the beetles' distributions
  ggplot() +
-  geom_sf(data = threat_eco, aes(fill =  `CNa1_ETS14`)) +
+  geom_sf(data = threat_eco_cropped, aes(fill =  `CNa1_ETS14`)) +
   scale_fill_manual(values = c("#ffac27", "#e7815d", "#ce5693", "#b62bc9", "#9d00ff")) +
   labs(fill = "Ecosystem threat status") +
   geom_sf(data = cpc_sf, color = "pink", size =0.8) +
@@ -198,8 +216,8 @@ This is all well and good, and provides us with a broad scale view of the specie
 library(mapview) # allows us to create an interactive map
 library(RColorBrewer) # loads in a palette of colour schemes
 
-mapview(threat_eco, zcol = c("CNa1_ETS14"), col.regions = brewer.pal(5,"RdYlBu"), map.types = "CartoDB.Positron", layer.name = c("Ecosystem Threat Status")) + 
-  mapview(threat_eco, zcol = c("NAME"), layer.name = c("Ecosystem name"), hide = TRUE) +
+mapview(threat_eco_cropped, zcol = c("CNa1_ETS14"), col.regions = brewer.pal(5,"RdYlBu"), map.types = "CartoDB.Positron", layer.name = c("Ecosystem Threat Status")) + 
+  mapview(threat_eco_cropped, zcol = c("NAME"), layer.name = c("Ecosystem name"), hide = TRUE) +
   mapview(cpc_sf, col.regions = "hotpink", layer.name = c("Trichostetha capensis")) + 
   mapview(gpc_sf, col.regions = "green", layer.name = c("Trichostetha fascicularis")) + 
   mapview(spc_sf, col.regions = "turquoise", layer.name = c("Trichostetha signata"))
